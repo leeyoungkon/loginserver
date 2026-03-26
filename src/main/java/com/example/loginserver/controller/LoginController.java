@@ -25,6 +25,9 @@ public class LoginController {
     @Value("${auth.server.url}")
     private String authServerUrl;
 
+    @Value("${auth.server.register.url}")
+    private String authServerRegisterUrl;
+
     @Value("${ingress.order.url}")
     private String ingressOrderUrl;
 
@@ -68,6 +71,54 @@ public class LoginController {
             return ResponseEntity
                     .status(e.getStatusCode())
                     .body("Order service error: " + e.getResponseBodyAsString());
+        }
+    }
+
+    /**
+     * 사용자 id/password 로그인 → Auth 서버에서 JWT 발급 결과를 그대로 반환
+     */
+    @PostMapping("/login/token")
+    public ResponseEntity<Object> loginForToken(@RequestBody LoginRequest loginRequest) {
+        try {
+            AuthResponse authResponse = restClient.post()
+                    .uri(authServerUrl)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(loginRequest)
+                    .retrieve()
+                    .body(AuthResponse.class);
+
+            if (authResponse == null || authResponse.getToken() == null) {
+                return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body("Authentication failed: token not received");
+            }
+
+            return ResponseEntity.ok(authResponse);
+        } catch (RestClientResponseException e) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body("Authentication failed: " + e.getResponseBodyAsString());
+        }
+    }
+
+    /**
+     * 사용자 id/password 회원가입 요청 → Auth 서버를 통해 DB에 사용자 등록
+     */
+    @PostMapping("/register")
+    public ResponseEntity<Object> register(@RequestBody LoginRequest loginRequest) {
+        try {
+            Object registerResponse = restClient.post()
+                    .uri(authServerRegisterUrl)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(loginRequest)
+                    .retrieve()
+                    .body(Object.class);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(registerResponse);
+        } catch (RestClientResponseException e) {
+            return ResponseEntity
+                    .status(e.getStatusCode())
+                    .body("Register failed: " + e.getResponseBodyAsString());
         }
     }
 }
