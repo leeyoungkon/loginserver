@@ -28,8 +28,8 @@ public class LoginController {
     @Value("${auth.server.register.url}")
     private String authServerRegisterUrl;
 
-    @Value("${ingress.order.url}")
-    private String ingressOrderUrl;
+    @Value("${ingress.url}")
+    private String ingressUrl;
 
     /**
      * 사용자 id/password 로그인 → Auth 서버에서 JWT 발급 → Ingress를 통해 Order 서비스 호출
@@ -61,7 +61,7 @@ public class LoginController {
         // 2. 발급된 JWT를 Authorization 헤더에 담아 Ingress를 통해 Order 서비스 요청
         try {
             Object orderResponse = restClient.get()
-                    .uri(ingressOrderUrl)
+                    .uri(ingressUrl + "/delivery")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authResponse.getToken())
                     .retrieve()
                     .body(Object.class);

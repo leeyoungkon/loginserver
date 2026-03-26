@@ -120,6 +120,28 @@
             cursor: not-allowed;
         }
 
+        .btn-delivery {
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+            border: 2px solid var(--accent);
+            border-radius: 12px;
+            padding: 11px 14px;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--accent-strong);
+            background: transparent;
+            cursor: pointer;
+            transition: transform 120ms ease, background 120ms ease, color 120ms ease;
+        }
+
+        .btn-delivery:hover {
+            background: var(--accent);
+            color: #fff;
+            transform: translateY(-1px);
+            filter: none;
+        }
+
         .message {
             min-height: 20px;
             margin: 14px 0 10px;
@@ -196,6 +218,8 @@
         <button id="submitButton" type="submit">토큰 받기</button>
     </form>
 
+    <button class="btn-delivery" type="button" onclick="location.href='/delivery'">🚚 Delivery 서비스 이동</button>
+
     <p id="message" class="message" role="status" aria-live="polite"></p>
 
     <div id="tokenBox" class="token-box" hidden>
@@ -264,6 +288,7 @@
                 if (token) {
                     showToken(token);
                     showMessage('로그인 성공: 토큰을 발급받았습니다.', 'success');
+                    document.cookie = "token=" + encodeURIComponent(token) + "; path=/; SameSite=Lax";
                 } else {
                     showMessage('로그인 성공이지만 토큰이 없습니다.', 'error');
                 }
