@@ -8,8 +8,10 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
@@ -72,6 +74,7 @@ public class LoginController {
                     .status(e.getStatusCode())
                     .body("Order service error: " + e.getResponseBodyAsString());
         }
+
     }
 
     /**
@@ -121,4 +124,39 @@ public class LoginController {
                     .body("Register failed: " + e.getResponseBodyAsString());
         }
     }
+
+    @GetMapping("/delivery")
+public ResponseEntity<Object> callDelivery(
+        @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader
+) 
+    {
+    if (authorizationHeader == null || authorizationHeader.isBlank()) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body("Missing Authorization header");
+    }
+
+    try {
+        String targetUrl = ingressUrl + "/delivery/status";
+
+        String deliveryResponse = restClient.get()
+                .uri(targetUrl)
+                .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
+                .retrieve()
+                .body(String.class);
+
+        return ResponseEntity.ok(deliveryResponse);
+
+    } catch (RestClientResponseException e) {
+        return ResponseEntity
+                .status(e.getStatusCode())
+                .body("Delivery service error: " + e.getResponseBodyAsString());
+
+    } catch (Exception e) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Delivery call exception: " + e.getClass().getName() + " - " + e.getMessage());
+    }
 }
+}
+

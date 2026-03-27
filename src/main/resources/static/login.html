@@ -218,8 +218,12 @@
         <button id="submitButton" type="submit">토큰 받기</button>
     </form>
 
-    <button class="btn-delivery" type="button" onclick="location.href='/delivery'">🚚 Delivery 서비스 이동</button>
-
+    <!--button class="btn-delivery" type="button" onclick="location.href='/delivery'">🚚 Delivery 서비스 이동</button> -->
+    <button id="deliveryButton" class="btn-delivery" type="button">🚚 Delivery 서비스 호출</button>
+    <div id="deliveryResult" class="token-box" hidden>
+    <p class="token-label">Delivery Response</p>
+    <pre id="deliveryText" style="white-space: pre-wrap; margin: 0;"></pre>
+    </div>
     <p id="message" class="message" role="status" aria-live="polite"></p>
 
     <div id="tokenBox" class="token-box" hidden>
@@ -231,9 +235,14 @@
 <script>
     const form = document.getElementById('loginForm');
     const submitButton = document.getElementById('submitButton');
+    const deliveryButton = document.getElementById('deliveryButton');
     const message = document.getElementById('message');
     const tokenBox = document.getElementById('tokenBox');
     const tokenText = document.getElementById('tokenText');
+    const deliveryResult = document.getElementById('deliveryResult');
+    const deliveryText = document.getElementById('deliveryText');
+
+    let accessToken = '';
 
     function showMessage(text, type) {
         message.textContent = text;
@@ -250,6 +259,20 @@
         tokenBox.hidden = false;
     }
 
+    function hideDeliveryResult() {
+        deliveryResult.hidden = true;
+        deliveryText.textContent = '';
+    }
+
+    function showDeliveryResult(payload) {
+        if (typeof payload === 'string') {
+            deliveryText.textContent = payload;
+        } else {
+            deliveryText.textContent = JSON.stringify(payload, null, 2);
+        }
+        deliveryResult.hidden = false;
+    }
+
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
 
@@ -258,12 +281,14 @@
 
         if (!id || !password) {
             hideToken();
+            hideDeliveryResult();
             showMessage('ID와 비밀번호를 모두 입력해 주세요.', 'error');
             return;
         }
 
         submitButton.disabled = true;
         hideToken();
+        hideDeliveryResult();
         showMessage('로그인 요청 중입니다...', '');
 
         try {
@@ -286,22 +311,59 @@
             if (response.ok) {
                 const token = payload && payload.token ? payload.token : '';
                 if (token) {
+                    accessToken = token;
                     showToken(token);
                     showMessage('로그인 성공: 토큰을 발급받았습니다.', 'success');
-                    document.cookie = "token=" + encodeURIComponent(token) + "; path=/; SameSite=Lax";
                 } else {
+                    accessToken = '';
                     showMessage('로그인 성공이지만 토큰이 없습니다.', 'error');
                 }
             } else {
+                accessToken = '';
                 const detail = typeof payload === 'string' ? payload : JSON.stringify(payload);
                 showMessage('로그인 실패: ' + detail, 'error');
             }
         } catch (error) {
+            accessToken = '';
             showMessage('요청 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.', 'error');
         } finally {
             submitButton.disabled = false;
         }
     });
+
+    
+deliveryButton.addEventListener('click', async () => {
+    if (!accessToken) {
+        showMessage('먼저 로그인해서 토큰을 발급받아 주세요.', 'error');
+        return;
+    }
+
+    deliveryButton.disabled = true;
+    showMessage('Delivery 서비스 요청 중입니다...', '');
+
+    try {
+        const response = await fetch('/api/delivery', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + accessToken
+            }
+        });
+
+        const html = await response.text();
+
+        if (response.ok) {
+            document.open();
+            document.write(html);
+            document.close();
+        } else {
+            showMessage('Delivery 호출 실패: ' + html, 'error');
+        }
+    } catch (error) {
+        showMessage('Delivery 요청 중 오류가 발생했습니다.', 'error');
+    } finally {
+        deliveryButton.disabled = false;
+    }
+});
 </script>
 </body>
 </html>
