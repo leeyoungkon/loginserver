@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -33,6 +35,41 @@ public class LoginController {
     @Value("${ingress.url}")
     private String ingressUrl;
 
+    private Optional<String> resolveFallbackAuthLoginUrl() {
+        if (authServerUrl == null) {
+            return Optional.empty();
+        }
+
+        if (authServerUrl.endsWith("/api/auth/login")) {
+            return Optional.of(authServerUrl.replace("/api/auth/login", "/api/login"));
+        }
+
+        return Optional.empty();
+    }
+
+    private AuthResponse requestToken(LoginRequest loginRequest, String url) {
+        return restClient.post()
+                .uri(url)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(loginRequest)
+                .retrieve()
+                .body(AuthResponse.class);
+    }
+
+    private AuthResponse requestTokenWithFallback(LoginRequest loginRequest) {
+        try {
+            return requestToken(loginRequest, authServerUrl);
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+                Optional<String> fallbackUrl = resolveFallbackAuthLoginUrl();
+                if (fallbackUrl.isPresent()) {
+                    return requestToken(loginRequest, fallbackUrl.get());
+                }
+            }
+            throw e;
+        }
+    }
+
     /**
      * 사용자 id/password 로그인 → Auth 서버에서 JWT 발급 → Ingress를 통해 Order 서비스 호출
      */
@@ -42,12 +79,7 @@ public class LoginController {
         // 1. Auth 서버에 인증 요청하여 JWT 발급
         AuthResponse authResponse;
         try {
-            authResponse = restClient.post()
-                    .uri(authServerUrl)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(loginRequest)
-                    .retrieve()
-                    .body(AuthResponse.class);
+            authResponse = requestTokenWithFallback(loginRequest);
         } catch (RestClientResponseException e) {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
@@ -83,12 +115,7 @@ public class LoginController {
     @PostMapping("/login/token")
     public ResponseEntity<Object> loginForToken(@RequestBody LoginRequest loginRequest) {
         try {
-            AuthResponse authResponse = restClient.post()
-                    .uri(authServerUrl)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(loginRequest)
-                    .retrieve()
-                    .body(AuthResponse.class);
+            AuthResponse authResponse = requestTokenWithFallback(loginRequest);
 
             if (authResponse == null || authResponse.getToken() == null) {
                 return ResponseEntity
