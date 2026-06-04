@@ -92,19 +92,19 @@ public class LoginController {
                     .body("Authentication failed: token not received");
         }
 
-        // 2. 발급된 JWT를 Authorization 헤더에 담아 Ingress를 통해 Order 서비스 요청
+        // 2. 발급된 JWT를 Authorization 헤더에 담아 Ingress를 통해 delivery 서비스 요청
         try {
-            Object orderResponse = restClient.get()
+            Object deliveryResponse = restClient.get()
                     .uri(ingressUrl + "/delivery")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authResponse.getToken())
                     .retrieve()
                     .body(Object.class);
 
-            return ResponseEntity.ok(orderResponse);
+            return ResponseEntity.ok(deliveryResponse);
         } catch (RestClientResponseException e) {
             return ResponseEntity
                     .status(e.getStatusCode())
-                    .body("Order service error: " + e.getResponseBodyAsString());
+                    .body("Delivery service error: " + e.getResponseBodyAsString());
         }
 
     }
@@ -153,37 +153,33 @@ public class LoginController {
     }
 
     @GetMapping("/delivery")
-public ResponseEntity<Object> callDelivery(
-        @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader
-) 
-    {
-    if (authorizationHeader == null || authorizationHeader.isBlank()) {
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
-                .body("Missing Authorization header");
+    public ResponseEntity<Object> callDelivery(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader
+    ) {
+        if (authorizationHeader == null || authorizationHeader.isBlank()) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body("Missing Authorization header");
+        }
+
+        try {
+            String deliveryResponse = restClient.get()
+                    .uri(ingressUrl + "/delivery")
+                    .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
+                    .retrieve()
+                    .body(String.class);
+
+            return ResponseEntity.ok(deliveryResponse);
+        } catch (RestClientResponseException e) {
+            return ResponseEntity
+                    .status(e.getStatusCode())
+                    .body("Delivery service error: " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Delivery call exception: " + e.getClass().getName() + " - " + e.getMessage());
+        }
     }
 
-    try {
-        String targetUrl = ingressUrl + "/delivery/status";
-
-        String deliveryResponse = restClient.get()
-                .uri(targetUrl)
-                .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
-                .retrieve()
-                .body(String.class);
-
-        return ResponseEntity.ok(deliveryResponse);
-
-    } catch (RestClientResponseException e) {
-        return ResponseEntity
-                .status(e.getStatusCode())
-                .body("Delivery service error: " + e.getResponseBodyAsString());
-
-    } catch (Exception e) {
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Delivery call exception: " + e.getClass().getName() + " - " + e.getMessage());
-    }
-}
 }
 

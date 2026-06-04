@@ -7,13 +7,12 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: localhost
-      http:
+    - http:
         paths:
           - path: /delivery
             pathType: Prefix
             backend:
               service:
-                name: delivery-service
+                name: delivery-keycloak-service
                 port:
                   number: 80
